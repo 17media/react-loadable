@@ -2,6 +2,9 @@
 
 > A higher order component for loading components with dynamic imports.
 
+## Notice
+This is a temporary quick-fix of `react-loadable` for our need, and should be replaced once the original package has solution.
+
 ## Example
 
 ```js
