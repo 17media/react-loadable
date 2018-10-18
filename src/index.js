@@ -231,13 +231,13 @@ function createLoadableComponent(loadFn, options) {
 
     render() {
       if (this.state.loading || this.state.error) {
-        return React.createElement(opts.loading, {
+        return React.createElement(opts.loading, Object.assign({
           isLoading: this.state.loading,
           pastDelay: this.state.pastDelay,
           timedOut: this.state.timedOut,
           error: this.state.error,
-          retry: this.retry
-        });
+          retry: this.retry,
+        }, this.props));
       } else if (this.state.loaded) {
         return opts.render(this.state.loaded, this.props);
       } else {
