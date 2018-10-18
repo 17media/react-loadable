@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const url = require('url');
 
 function buildManifest(compiler, compilation) {
   let context = compiler.options.context;
@@ -11,12 +12,17 @@ function buildManifest(compiler, compilation) {
       chunk.forEachModule(module => {
         let id = module.id;
         let name = typeof module.libIdent === 'function' ? module.libIdent({ context }) : null;
-
-        if (!manifest[module.rawRequest]) {
-          manifest[module.rawRequest] = [];
+        let publicPath = url.resolve(compilation.outputOptions.publicPath || '', file);
+        
+        let currentModule = module;
+        if (module.constructor.name === 'ConcatenatedModule') {
+          currentModule = module.rootModule;
+        }
+        if (!manifest[currentModule.rawRequest]) {
+          manifest[currentModule.rawRequest] = [];
         }
 
-        manifest[module.rawRequest].push({ id, name, file });
+        manifest[currentModule.rawRequest].push({ id, name, file, publicPath });
       });
     });
   });

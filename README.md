@@ -3,7 +3,14 @@
 > A higher order component for loading components with dynamic imports.
 
 ## Notice
+
 This is a temporary quick-fix of `react-loadable` for our need, and should be replaced once the original package has solution.
+
+## Install
+
+```sh
+yarn add react-loadable
+```
 
 ## Example
 
@@ -30,16 +37,30 @@ export default class App extends React.Component {
 - ["Oh hey - using loadable component I knocked 13K off my initial load. Easy win!"](https://twitter.com/AdamRackis/status/846593080992153600)
 - ["Had a look and its awesome. shaved like 50kb off our main bundle."](https://github.com/quran/quran.com-frontend/pull/701#issuecomment-287908551)
 - ["I've got that server-side rendering + code splitting + PWA ServiceWorker caching setup done 😎 (thanks to react-loadable). Now our frontend is super fast."](https://twitter.com/mxstbr/status/922375575217627136)
+- ["Using react-loadable went from 221.28 KB → 115.76 KB @ main bundle. Fucking awesome and very simple API."](https://twitter.com/evgenyrodionov/status/958821614644269057)
 
 ## Users
 
+- [Analog.Cafe](https://www.analog.cafe)
+- [Appbase.io](https://github.com/appbaseio/reactivesearch)
 - [Atlassian](https://www.atlassian.com/)
 - [Cloudflare](https://www.cloudflare.com)
 - [Curio](https://www.curio.org)
+- [Dollar Shave Club](https://github.com/dollarshaveclub)
+- [Dresez](https://dresez.pk/)
+- [Flyhomes](https://flyhomes.com)
+- [Gogo](https://gogoair.com)
+- [Gofore](https://gofore.com/en/home/)
 - [MediaTek MCS-Lite](https://github.com/MCS-Lite)
+- [Officepulse](https://www.officepulse.in/)
+- [Plottu](https://public.plottu.com)
+- [Render](https://render.com)
+- [Snipit](https://snipit.io)
 - [Spectrum.chat](https://spectrum.chat)
 - [Talentpair](https://talentpair.com)
 - [Tinder](https://tinder.com/)
+- [Unsplash](https://unsplash.com/)
+- [Wave](https://waveapps.com/)
 
 > _If your company or project is using React Loadable, please open a PR and add
 > yourself to this list (in alphabetical order please)_
@@ -142,7 +163,7 @@ class MyComponent extends React.Component {
 
   componentWillMount() {
     import('./components/Bar').then(Bar => {
-      this.setState({ Bar });
+      this.setState({ Bar: Bar.default });
     });
   }
 
@@ -212,13 +233,13 @@ couple different props.
 #### Loading error states
 
 When your [`loader`](optsloader) fails, your [loading component](#loadingcomponent)
-will receive an [`error`](propserror) prop which will be `true` (otherwise it
-will be `false`).
+will receive an [`error`](propserror) prop which will be an `Error` object (otherwise it
+will be `null`).
 
 ```js
 function Loading(props) {
   if (props.error) {
-    return <div>Error!</div>;
+    return <div>Error! <button onClick={ props.retry }>Retry</button></div>;
   } else {
     return <div>Loading...</div>;
   }
@@ -241,7 +262,7 @@ which will only be true once the component has taken longer to load than a set
 ```js
 function Loading(props) {
   if (props.error) {
-    return <div>Error!</div>;
+    return <div>Error! <button onClick={ props.retry }>Retry</button></div>;
   } else if (props.pastDelay) {
     return <div>Loading...</div>;
   } else {
@@ -274,9 +295,9 @@ The [loading component](#loadingcomponent) will receive a
 ```js
 function Loading(props) {
   if (props.error) {
-    return <div>Error!</div>;
+    return <div>Error! <button onClick={ props.retry }>Retry</button></div>;
   } else if (props.timedOut) {
-    return <div>Taking a long time...</div>;
+    return <div>Taking a long time... <button onClick={ props.retry }>Retry</button></div>;
   } else if (props.pastDelay) {
     return <div>Loading...</div>;
   } else {
@@ -565,6 +586,28 @@ app.get('/', (req, res) => {
 
 We can then render these bundles into `<script>` tags in our HTML.
 
+It is important that the bundles are included _before_ the main bundle, so that
+they can be loaded by the browser prior to the app rendering.
+
+However, as the Webpack manifest (including the logic for parsing bundles) lives in
+the main bundle, it will need to be extracted into its own chunk.
+
+This is easy to do with the [CommonsChunkPlugin](https://webpack.js.org/plugins/commons-chunk-plugin/)
+
+```js
+// webpack.config.js
+export default {
+  plugins: [
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'manifest',
+      minChunks: Infinity
+    })
+  ]
+}
+```
+
+_Notice: As of Webpack 4 the CommonsChunkPlugin has been removed and the manifest doesn't need to be extracted anymore._
+
 ```js
 let bundles = getBundles(stats, modules);
 
@@ -574,26 +617,26 @@ res.send(`
     <head>...</head>
     <body>
       <div id="app">${html}</div>
-      <script src="/dist/main.js"></script>
+      <script src="/dist/manifest.js"></script>
       ${bundles.map(bundle => {
         return `<script src="/dist/${bundle.file}"></script>`
+        // alternatively if you are using publicPath option in webpack config
+        // you can use the publicPath value from bundle, e.g:
+        // return `<script src="${bundle.publicPath}"></script>`
       }).join('\n')}
+      <script src="/dist/main.js"></script>
     </body>
   </html>
 `);
 ```
 
-#### Waiting to render on the client until all the bundles are loaded
+#### Preloading ready loadable components on the client
 
-Because of the way that Webpack works, our app in the main bundle will render
-before the other scripts are loaded.
+We can use the [`Loadable.preloadReady()`](#loadablepreloadready) method on the
+client to preload the loadable components that were included on the page.
 
-So we'll need to defer rendering our app until they are all loaded.
-
-To do this we'll expose a global function for us to call when all the bundles
-are loaded, and we'll use the [`Loadable.preloadReady()`](#loadablepreloadready)
-method just like our [`Loadable.preloadAll()`](#loadablepreloadall) method on
-the server.
+Like [`Loadable.preloadAll()`](#loadablepreloadall), it returns a promise,
+which on resolution means that we can hydrate our app.
 
 ```js
 // src/entry.js
@@ -602,27 +645,10 @@ import ReactDOM from 'react-dom';
 import Loadable from 'react-loadable';
 import App from './components/App';
 
-window.main = () => {
-  Loadable.preloadReady().then(() => {
-    ReactDOM.hydrate(<App/>, document.getElementById('app'));
-  });
-};
-```
+Loadable.preloadReady().then(() => {
+  ReactDOM.hydrate(<App/>, document.getElementById('app'));
+});
 
-Then in our HTML returned by the server, we'll call our global function in a
-final `<script>` tag.
-
-```js
-let bundles = getBundles(stats, modules);
-
-res.send(`
-      ...
-      <script src="/dist/main.js"></script>
-      ${bundles.map(...).join('\n')}
-      <script>window.main();</script>
-    </body>
-  </html>
-`);
 ```
 
 <h4 align="center">
@@ -834,10 +860,10 @@ This is the component you pass to [`opts.loading`](#optsloading).
 function LoadingComponent(props) {
   if (props.error) {
     // When the loader has errored
-    return <div>Error!</div>;
+    return <div>Error! <button onClick={ props.retry }>Retry</button></div>;
   } else if (props.timedOut) {
     // When the loader has taken longer than the timeout
-    return <div>Taking a long time...</div>;
+    return <div>Taking a long time... <button onClick={ props.retry }>Retry</button></div>;
   } else if (props.pastDelay) {
     // When the loader has taken longer than the delay
     return <div>Loading...</div>;
@@ -847,7 +873,7 @@ function LoadingComponent(props) {
   }
 }
 
-Loading({
+Loadable({
   loading: LoadingComponent,
 });
 ```
@@ -856,13 +882,31 @@ Loading({
 
 #### `props.error`
 
-A boolean prop passed to [`LoadingComponent`](#loadingcomponent) when the
-[`loader`](#optsloader) has failed.
+An `Error` object passed to [`LoadingComponent`](#loadingcomponent) when the
+[`loader`](#optsloader) has failed. When there is no error, `null` is
+passed.
 
 ```js
 function LoadingComponent(props) {
   if (props.error) {
     return <div>Error!</div>;
+  } else {
+    return <div>Loading...</div>;
+  }
+}
+```
+
+[Read more about errors](#loading-error-states).
+
+#### `props.retry`
+
+A function prop passed to [`LoadingComponent`](#loadingcomponent) when the
+[`loader`](#optsloader) has failed, used to retry loading the component.
+
+```js
+function LoadingComponent(props) {
+  if (props.error) {
+    return <div>Error! <button onClick={ props.retry }>Retry</button></div>;
   } else {
     return <div>Loading...</div>;
   }
@@ -961,11 +1005,9 @@ Check for modules that are already loaded in the browser and call the matching
 [`LoadableComponent.preload`](#loadablecomponentpreload) methods.
 
 ```js
-window.main = () => {
-  Loadable.preloadReady().then(() => {
-    ReactDOM.hydrate(<App/>, document.getElementById('app'));
-  });
-};
+Loadable.preloadReady().then(() => {
+  ReactDOM.hydrate(<App/>, document.getElementById('app'));
+});
 ```
 
 [Read more about preloading on the client](#waiting-to-render-on-the-client-until-all-the-bundles-are-loaded).
@@ -1106,7 +1148,7 @@ export default function MyLoadable(opts) {
   return Loadable(Object.assign({
     loading: Loading,
     delay: 200,
-    timeout: 10,
+    timeout: 10000,
   }, opts));
 };
 ```
