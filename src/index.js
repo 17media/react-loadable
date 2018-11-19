@@ -230,8 +230,8 @@ function createLoadableComponent(loadFn, options) {
     };
 
     render() {
-      const innerRef = this.props.innerRef;
-      const props = {};
+      // reassign variable name from innerRef to ref
+      const props = { ref: this.props.innerRef };
       Object.keys(this.props).forEach(key => {
         if (key !== "innerRef") {
           props[key] = this.props[key];
@@ -247,17 +247,13 @@ function createLoadableComponent(loadFn, options) {
               pastDelay: this.state.pastDelay,
               timedOut: this.state.timedOut,
               error: this.state.error,
-              retry: this.retry,
-              ref: innerRef
+              retry: this.retry
             },
             props
           )
         );
       } else if (this.state.loaded) {
-        return opts.render(
-          this.state.loaded,
-          Object.assign({}, props, { ref: innerRef })
-        );
+        return opts.render(this.state.loaded, props);
       } else {
         return null;
       }
