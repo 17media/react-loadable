@@ -261,12 +261,16 @@ function createLoadableComponent(loadFn, options) {
   }
 
   if (React.forwardRef) {
-    return React.forwardRef(function LoadableComponentWithRef(props, ref) {
-      return React.createElement(
-        LoadableComponent,
-        Object.assign({}, props, { innerRef: ref })
-      );
-    });
+    const ForwardedLoadableComponent = React.forwardRef(
+      function LoadableComponentWithRef(props, ref) {
+        return React.createElement(
+          LoadableComponent,
+          Object.assign({}, props, { innerRef: ref })
+        );
+      }
+    );
+
+    ForwardedLoadableComponent.preload = init;
   }
 
   return LoadableComponent;
