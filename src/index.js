@@ -271,6 +271,8 @@ function createLoadableComponent(loadFn, options) {
     );
 
     ForwardedLoadableComponent.preload = init;
+
+    return ForwardedLoadableComponent;
   }
 
   return LoadableComponent;
