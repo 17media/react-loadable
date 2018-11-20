@@ -230,13 +230,16 @@ function createLoadableComponent(loadFn, options) {
     };
 
     render() {
-      // reassign variable name from innerRef to ref
-      const props = { ref: this.props.innerRef };
-      Object.keys(this.props).forEach(key => {
-        if (key !== "innerRef") {
-          props[key] = this.props[key];
-        }
-      });
+      let props = this.props;
+      if (React.forwardRef) {
+        // reassign variable name from innerRef to ref
+        props = { ref: this.props.innerRef };
+        Object.keys(this.props).forEach(key => {
+          if (key !== "innerRef") {
+            props[key] = this.props[key];
+          }
+        });
+      }
 
       if (this.state.loading || this.state.error) {
         return React.createElement(
@@ -270,7 +273,7 @@ function createLoadableComponent(loadFn, options) {
       }
     );
 
-    ForwardedLoadableComponent.preload = init;
+    ForwardedLoadableComponent.preload = LoadableComponent.preload;
 
     return ForwardedLoadableComponent;
   }
