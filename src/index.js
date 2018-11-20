@@ -134,7 +134,7 @@ function createLoadableComponent(loadFn, options) {
     });
   }
 
-  return class LoadableComponent extends React.Component {
+  class LoadableComponent extends React.Component {
     constructor(props) {
       super(props);
       init();
@@ -230,21 +230,55 @@ function createLoadableComponent(loadFn, options) {
     };
 
     render() {
+      let props = this.props;
+      if (React.forwardRef) {
+        // reassign variable name from innerRef to ref
+        props = { ref: this.props.innerRef };
+        Object.keys(this.props).forEach(key => {
+          if (key !== "innerRef") {
+            props[key] = this.props[key];
+          }
+        });
+      }
+
       if (this.state.loading || this.state.error) {
-        return React.createElement(opts.loading, Object.assign({
-          isLoading: this.state.loading,
-          pastDelay: this.state.pastDelay,
-          timedOut: this.state.timedOut,
-          error: this.state.error,
-          retry: this.retry,
-        }, this.props));
+        return React.createElement(
+          opts.loading,
+          Object.assign(
+            {
+              isLoading: this.state.loading,
+              pastDelay: this.state.pastDelay,
+              timedOut: this.state.timedOut,
+              error: this.state.error,
+              retry: this.retry
+            },
+            props
+          )
+        );
       } else if (this.state.loaded) {
-        return opts.render(this.state.loaded, this.props);
+        return opts.render(this.state.loaded, props);
       } else {
         return null;
       }
     }
-  };
+  }
+
+  if (React.forwardRef) {
+    const ForwardedLoadableComponent = React.forwardRef(
+      function LoadableComponentWithRef(props, ref) {
+        return React.createElement(
+          LoadableComponent,
+          Object.assign({}, props, { innerRef: ref })
+        );
+      }
+    );
+
+    ForwardedLoadableComponent.preload = LoadableComponent.preload;
+
+    return ForwardedLoadableComponent;
+  }
+
+  return LoadableComponent;
 }
 
 function Loadable(opts) {
